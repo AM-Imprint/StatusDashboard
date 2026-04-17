@@ -12,8 +12,10 @@ const MAX_BACKOFF = 30_000
 
 export function useWebSocket() {
   const status = ref<WsStatus>('connecting')
+  const retryIn = ref<number | null>(null)
   let ws: WebSocket | null = null
   let retryTimeout: ReturnType<typeof setTimeout> | null = null
+  let countdownInterval: ReturnType<typeof setInterval> | null = null
   let backoff = 1000
   let destroyed = false
 
@@ -53,6 +55,8 @@ export function useWebSocket() {
     ws.onopen = () => {
       backoff = 1000
       status.value = 'open'
+      retryIn.value = null
+      if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null }
       systemsStore.fetchAll()
       servicesStore.fetchAll()
     }
@@ -72,16 +76,36 @@ export function useWebSocket() {
     ws.onclose = () => {
       if (destroyed) return
       status.value = 'closed'
+      const delay = backoff
+      retryIn.value = Math.ceil(delay / 1000)
+      if (countdownInterval) clearInterval(countdownInterval)
+      countdownInterval = setInterval(() => {
+        if (retryIn.value !== null && retryIn.value > 1) {
+          retryIn.value--
+        } else {
+          clearInterval(countdownInterval!)
+          countdownInterval = null
+        }
+      }, 1000)
       retryTimeout = setTimeout(() => {
         backoff = Math.min(backoff * 2, MAX_BACKOFF)
         connect()
-      }, backoff)
+      }, delay)
     }
+  }
+
+  function reconnectNow() {
+    if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null }
+    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null }
+    retryIn.value = null
+    backoff = 1000
+    connect()
   }
 
   function disconnect() {
     destroyed = true
     if (retryTimeout) clearTimeout(retryTimeout)
+    if (countdownInterval) clearInterval(countdownInterval)
     ws?.close()
     ws = null
   }
@@ -89,5 +113,5 @@ export function useWebSocket() {
   connect()
   onUnmounted(disconnect)
 
-  return { status, connect, disconnect }
+  return { status, retryIn, connect, reconnectNow, disconnect }
 }

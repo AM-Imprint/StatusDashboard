@@ -44,13 +44,12 @@ export const useSystemsStore = defineStore('systems', {
       Object.assign(sys, msg.fields)
     },
 
-    recomputeHealth(systemId: string | null | undefined) {
-      if (!systemId) return
+    recomputeHealth(systemId: string) {
       const sys = this.items[systemId]
       if (!sys) return
 
       const servicesStore = useServicesStore()
-      const services = servicesStore.list.filter(s => s.system_id === systemId)
+      const services = servicesStore.list.filter(s => s.system_ids.includes(systemId))
 
       if (services.length === 0) {
         sys.health = 'unknown'

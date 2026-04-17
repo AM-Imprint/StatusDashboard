@@ -9,7 +9,6 @@ pub struct Service {
     pub config: String,
     pub interval_secs: i64,
     pub enabled: i64,
-    pub system_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -20,7 +19,7 @@ pub struct CreateService {
     pub service_type: String,
     pub config: serde_json::Value,
     pub interval_secs: Option<i64>,
-    pub system_id: Option<String>,
+    pub system_ids: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +28,6 @@ pub struct UpdateService {
     pub config: Option<serde_json::Value>,
     pub interval_secs: Option<i64>,
     pub enabled: Option<bool>,
-    /// Some(Some(id)) = assign, Some(None) = unassign, None = no change
-    pub system_id: Option<Option<String>>,
+    /// Some(ids) = replace membership, None = no change
+    pub system_ids: Option<Vec<String>>,
 }

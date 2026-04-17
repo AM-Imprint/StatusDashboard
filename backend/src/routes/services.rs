@@ -19,7 +19,7 @@ pub async fn list_services(
     let rows = sqlx::query!(
         r#"SELECT id as "id!", name as "name!", service_type as "service_type!",
            config as "config!", interval_secs as "interval_secs!", enabled as "enabled!",
-           system_id, created_at as "created_at!", updated_at as "updated_at!"
+           created_at as "created_at!", updated_at as "updated_at!"
            FROM services ORDER BY created_at ASC"#
     )
     .fetch_all(&state.db)
@@ -27,6 +27,14 @@ pub async fn list_services(
 
     let mut result = Vec::with_capacity(rows.len());
     for r in rows {
+        let system_ids: Vec<String> = sqlx::query_scalar!(
+            "SELECT system_id FROM service_systems WHERE service_id = ?",
+            r.id
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
         let latest = sqlx::query!(
             r#"SELECT id as "id!", checked_at as "checked_at!", status as "status!",
                response_ms, error_message
@@ -51,7 +59,7 @@ pub async fn list_services(
             "config": serde_json::from_str::<serde_json::Value>(&r.config).unwrap_or(serde_json::Value::Null),
             "interval_secs": r.interval_secs,
             "enabled": r.enabled == 1,
-            "system_id": r.system_id,
+            "system_ids": system_ids,
             "created_at": r.created_at,
             "updated_at": r.updated_at,
             "latest_check": latest_check
@@ -67,13 +75,21 @@ pub async fn get_service(
     let r = sqlx::query!(
         r#"SELECT id as "id!", name as "name!", service_type as "service_type!",
            config as "config!", interval_secs as "interval_secs!", enabled as "enabled!",
-           system_id, created_at as "created_at!", updated_at as "updated_at!"
+           created_at as "created_at!", updated_at as "updated_at!"
            FROM services WHERE id = ?"#,
         id
     )
     .fetch_optional(&state.db)
     .await?
     .ok_or(AppError::NotFound)?;
+
+    let system_ids: Vec<String> = sqlx::query_scalar!(
+        "SELECT system_id FROM service_systems WHERE service_id = ?",
+        r.id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
 
     Ok(Json(serde_json::json!({
         "id": r.id,
@@ -82,7 +98,7 @@ pub async fn get_service(
         "config": serde_json::from_str::<serde_json::Value>(&r.config).unwrap_or(serde_json::Value::Null),
         "interval_secs": r.interval_secs,
         "enabled": r.enabled == 1,
-        "system_id": r.system_id,
+        "system_ids": system_ids,
         "created_at": r.created_at,
         "updated_at": r.updated_at
     })))
@@ -101,16 +117,28 @@ pub async fn create_service(
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
     sqlx::query!(
-        "INSERT INTO services (id, name, service_type, config, interval_secs, enabled, system_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)",
-        id, body.name, body.service_type, config_str, interval, body.system_id, now, now
+        "INSERT INTO services (id, name, service_type, config, interval_secs, enabled, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
+        id, body.name, body.service_type, config_str, interval, now, now
     )
     .execute(&state.db)
     .await?;
 
+    if let Some(system_ids) = &body.system_ids {
+        for sid in system_ids {
+            sqlx::query!(
+                "INSERT OR IGNORE INTO service_systems (service_id, system_id) VALUES (?, ?)",
+                id, sid
+            )
+            .execute(&state.db)
+            .await?;
+        }
+    }
+
     scheduler::spawn_service(id.clone(), &state.db, state.tx.clone(), &state.scheduler_handles).await;
 
-    let resp = serde_json::json!({ "id": id, "name": body.name, "system_id": body.system_id, "created_at": now });
+    let system_ids = body.system_ids.unwrap_or_default();
+    let resp = serde_json::json!({ "id": id, "name": body.name, "system_ids": system_ids, "created_at": now });
     Ok((StatusCode::CREATED, Json(resp)))
 }
 
@@ -121,7 +149,7 @@ pub async fn update_service(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let r = sqlx::query!(
         r#"SELECT id as "id!", name as "name!", config as "config!",
-           interval_secs as "interval_secs!", enabled as "enabled!", system_id
+           interval_secs as "interval_secs!", enabled as "enabled!"
            FROM services WHERE id = ?"#,
         id
     )
@@ -133,25 +161,23 @@ pub async fn update_service(
     let config_str = body.config.as_ref().map(|c| c.to_string()).unwrap_or(r.config);
     let interval = body.interval_secs.unwrap_or(r.interval_secs);
     let enabled: i64 = body.enabled.map(|e| e as i64).unwrap_or(r.enabled);
-    // double-Option: Some(Some(id)) = assign, Some(None) = unassign, None = no change
-    let new_system_id: Option<Option<String>> = body.system_id;
     let now = Utc::now().to_rfc3339();
 
-    match &new_system_id {
-        Some(sid) => {
-            sqlx::query!(
-                "UPDATE services SET name = ?, config = ?, interval_secs = ?, enabled = ?, system_id = ?, updated_at = ?
-                 WHERE id = ?",
-                name, config_str, interval, enabled, sid, now, id
-            )
+    sqlx::query!(
+        "UPDATE services SET name = ?, config = ?, interval_secs = ?, enabled = ?, updated_at = ? WHERE id = ?",
+        name, config_str, interval, enabled, now, id
+    )
+    .execute(&state.db)
+    .await?;
+
+    if let Some(system_ids) = &body.system_ids {
+        sqlx::query!("DELETE FROM service_systems WHERE service_id = ?", id)
             .execute(&state.db)
             .await?;
-        }
-        None => {
+        for sid in system_ids {
             sqlx::query!(
-                "UPDATE services SET name = ?, config = ?, interval_secs = ?, enabled = ?, updated_at = ?
-                 WHERE id = ?",
-                name, config_str, interval, enabled, now, id
+                "INSERT OR IGNORE INTO service_systems (service_id, system_id) VALUES (?, ?)",
+                id, sid
             )
             .execute(&state.db)
             .await?;
@@ -164,9 +190,13 @@ pub async fn update_service(
         scheduler::abort_service(&id, &state.scheduler_handles).await;
     }
 
-    let effective_system_id = new_system_id
-        .clone()
-        .unwrap_or(r.system_id.map(Some).unwrap_or(None));
+    let effective_system_ids: Vec<String> = sqlx::query_scalar!(
+        "SELECT system_id FROM service_systems WHERE service_id = ?",
+        id
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
 
     let _ = state.tx.send(WsMessage::ServiceUpdated {
         service_id: id.clone(),
@@ -174,7 +204,7 @@ pub async fn update_service(
             "name": name,
             "interval_secs": interval,
             "enabled": enabled == 1,
-            "system_id": effective_system_id
+            "system_ids": effective_system_ids
         }),
     });
 

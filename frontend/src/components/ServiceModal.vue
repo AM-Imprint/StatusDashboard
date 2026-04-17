@@ -18,7 +18,7 @@ const serviceType  = ref(props.service?.service_type ?? 'http')
 const configText   = ref(props.service ? JSON.stringify(props.service.config, null, 2) : defaultConfig('http'))
 const intervalSecs = ref(props.service?.interval_secs ?? 60)
 const enabled      = ref(props.service?.enabled ?? true)
-const systemId     = ref<string | null>(props.service?.system_id ?? null)
+const systemIds    = ref<string[]>(props.service?.system_ids ?? [])
 const error        = ref('')
 const saving       = ref(false)
 const deleting     = ref(false)
@@ -101,7 +101,7 @@ async function submit() {
         config,
         interval_secs: intervalSecs.value,
         enabled: enabled.value,
-        system_id: systemId.value,
+        system_ids: systemIds.value,
       })
       const updated = await api.fetchService(props.service.id)
       store.upsert(updated)
@@ -111,7 +111,7 @@ async function submit() {
         service_type: serviceType.value,
         config,
         interval_secs: intervalSecs.value,
-        system_id: systemId.value,
+        system_ids: systemIds.value,
       })
       await store.fetchAll()
     }
@@ -172,11 +172,14 @@ async function deleteService() {
         </div>
 
         <div class="form-group">
-          <label for="svc-system">System (optional)</label>
-          <select id="svc-system" v-model="systemId">
-            <option :value="null">— None (ungrouped) —</option>
-            <option v-for="sys in systemsStore.list" :key="sys.id" :value="sys.id">{{ sys.name }}</option>
-          </select>
+          <label>Systems (optional)</label>
+          <div class="checkbox-list">
+            <span v-if="systemsStore.list.length === 0" class="form-hint">No systems created yet</span>
+            <label v-for="sys in systemsStore.list" :key="sys.id" class="checkbox-item">
+              <input type="checkbox" :value="sys.id" v-model="systemIds" />
+              {{ sys.name }}
+            </label>
+          </div>
         </div>
 
         <div v-if="isEdit" class="toggle-row">

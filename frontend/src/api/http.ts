@@ -36,13 +36,13 @@ export const api = {
 
   fetchService: (id: string) => request<Service>(`/api/services/${id}`),
 
-  createService: (body: { name: string; service_type: string; config: unknown; interval_secs?: number; system_id?: string | null }) =>
-    request<{ id: string; name: string; system_id: string | null; created_at: string }>('/api/services', {
+  createService: (body: { name: string; service_type: string; config: unknown; interval_secs?: number; system_ids?: string[] }) =>
+    request<{ id: string; name: string; system_ids: string[]; created_at: string }>('/api/services', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
 
-  updateService: (id: string, body: { name?: string; config?: unknown; interval_secs?: number; enabled?: boolean; system_id?: string | null }) =>
+  updateService: (id: string, body: { name?: string; config?: unknown; interval_secs?: number; enabled?: boolean; system_ids?: string[] }) =>
     request<{ id: string; updated_at: string }>(`/api/services/${id}`, {
       method: 'PUT',
       body: JSON.stringify(body),

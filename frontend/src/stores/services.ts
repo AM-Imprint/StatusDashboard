@@ -13,10 +13,10 @@ export const useServicesStore = defineStore('services', {
   getters: {
     list: (state) => Object.values(state.items).sort((a, b) => a.created_at.localeCompare(b.created_at)),
     bySystem: (state) => (systemId: string) =>
-      Object.values(state.items).filter(s => s.system_id === systemId),
+      Object.values(state.items).filter(s => s.system_ids.includes(systemId)),
     ungrouped: (state) =>
       Object.values(state.items)
-        .filter(s => s.system_id === null || s.system_id === undefined)
+        .filter(s => !s.system_ids || s.system_ids.length === 0)
         .sort((a, b) => a.created_at.localeCompare(b.created_at)),
   },
 
@@ -54,7 +54,10 @@ export const useServicesStore = defineStore('services', {
         response_ms: msg.response_ms,
         error_message: msg.error_message,
       }
-      useSystemsStore().recomputeHealth(svc.system_id)
+      const systemsStore = useSystemsStore()
+      for (const sid of svc.system_ids ?? []) {
+        systemsStore.recomputeHealth(sid)
+      }
     },
 
     applyServiceUpdate(msg: Extract<WsMessage, { type: 'service_updated' }>) {

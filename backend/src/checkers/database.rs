@@ -75,6 +75,17 @@ impl DatabaseChecker {
                 pool.close().await;
                 Ok(())
             }
+            "postgresql" | "postgres" => {
+                let pool = sqlx::PgPool::connect(&self.connection_string)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                sqlx::query(&self.probe_query)
+                    .execute(&pool)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                pool.close().await;
+                Ok(())
+            }
             other => Err(format!("Unsupported database driver: {other}")),
         }
     }

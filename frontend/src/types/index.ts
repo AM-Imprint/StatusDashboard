@@ -25,7 +25,7 @@ export interface Service {
   config: Record<string, unknown>
   interval_secs: number
   enabled: boolean
-  system_id: string | null
+  system_ids: string[]
   created_at: string
   updated_at: string
   latest_check: LatestCheck | null

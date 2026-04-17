@@ -26,7 +26,7 @@ pub async fn list_systems(
     for r in &rows {
         let health = derive_health(&r.id, &state).await;
         let count: i64 = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM services WHERE system_id = ?", r.id
+            "SELECT COUNT(*) FROM service_systems WHERE system_id = ?", r.id
         )
         .fetch_one(&state.db)
         .await?;
@@ -124,7 +124,7 @@ pub async fn delete_system(
 async fn derive_health(system_id: &str, state: &AppState) -> &'static str {
     let statuses = sqlx::query!(
         r#"SELECT status as "status!" FROM check_results
-           WHERE service_id IN (SELECT id FROM services WHERE system_id = ?)
+           WHERE service_id IN (SELECT service_id FROM service_systems WHERE system_id = ?)
            AND id IN (
                SELECT id FROM check_results cr2
                WHERE cr2.service_id = check_results.service_id
