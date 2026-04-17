@@ -1,0 +1,17 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Incident {
+    pub id: String,
+    pub service_id: String,
+    pub started_at: String,
+    pub resolved_at: Option<String>,
+    pub status: String,
+    pub trigger_status: String,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResolveIncident {
+    pub notes: Option<String>,
+}

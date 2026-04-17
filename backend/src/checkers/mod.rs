@@ -1,0 +1,51 @@
+use async_trait::async_trait;
+use serde_json::Value;
+use thiserror::Error;
+use crate::models::check_result::CheckStatus;
+
+pub mod aws_billing;
+pub mod database;
+pub mod http;
+pub mod php_site;
+pub mod preflight;
+
+#[derive(Debug, Clone)]
+pub struct CheckOutput {
+    pub status: CheckStatus,
+    pub response_ms: Option<u64>,
+    pub detail: Option<Value>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Error)]
+pub enum CheckError {
+    #[error("Checker error: {0}")]
+    Error(String),
+}
+
+#[async_trait]
+pub trait Checker: Send + Sync {
+    async fn check(&self) -> Result<CheckOutput, CheckError>;
+}
+
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error("Unknown service type: {0}")]
+    UnknownType(String),
+    #[error("Invalid config: {0}")]
+    InvalidConfig(String),
+}
+
+pub fn build_checker(
+    service_type: &str,
+    config: &Value,
+) -> Result<Box<dyn Checker>, ConfigError> {
+    match service_type {
+        "http" => Ok(Box::new(http::HttpChecker::from_config(config)?)),
+        "database" => Ok(Box::new(database::DatabaseChecker::from_config(config)?)),
+        "aws_billing" => Ok(Box::new(aws_billing::AwsBillingChecker::from_config(config)?)),
+        "php_site" => Ok(Box::new(php_site::PhpSiteChecker::from_config(config)?)),
+        "preflight" => Ok(Box::new(preflight::PreflightChecker::from_config(config)?)),
+        other => Err(ConfigError::UnknownType(other.to_string())),
+    }
+}
