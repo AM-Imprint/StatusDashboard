@@ -8,10 +8,19 @@ use crate::ws;
 pub mod check_results;
 pub mod incidents;
 pub mod services;
+pub mod systems;
 
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
+        // Systems
+        .route("/api/systems", get(systems::list_systems).post(systems::create_system))
+        .route(
+            "/api/systems/:id",
+            axum::routing::put(systems::update_system)
+                .delete(systems::delete_system),
+        )
+        // Services
         .route("/api/services", get(services::list_services).post(services::create_service))
         .route(
             "/api/services/:id",

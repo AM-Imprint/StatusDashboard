@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { api } from '../api/http'
 import type { Service, WsMessage } from '../types'
+import { useSystemsStore } from './systems'
 
 export const useServicesStore = defineStore('services', {
   state: () => ({
@@ -11,6 +12,12 @@ export const useServicesStore = defineStore('services', {
 
   getters: {
     list: (state) => Object.values(state.items).sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    bySystem: (state) => (systemId: string) =>
+      Object.values(state.items).filter(s => s.system_id === systemId),
+    ungrouped: (state) =>
+      Object.values(state.items)
+        .filter(s => s.system_id === null || s.system_id === undefined)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at)),
   },
 
   actions: {
@@ -47,6 +54,7 @@ export const useServicesStore = defineStore('services', {
         response_ms: msg.response_ms,
         error_message: msg.error_message,
       }
+      useSystemsStore().recomputeHealth(svc.system_id)
     },
 
     applyServiceUpdate(msg: Extract<WsMessage, { type: 'service_updated' }>) {

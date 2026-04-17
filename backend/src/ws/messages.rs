@@ -27,6 +27,10 @@ pub enum WsMessage {
         service_id: String,
         fields: serde_json::Value,
     },
+    SystemUpdated {
+        system_id: String,
+        fields: serde_json::Value,
+    },
     Ping {
         ts: String,
     },

@@ -1,4 +1,4 @@
-import type { CheckResult, Incident, Service } from '../types'
+import type { CheckResult, Incident, Service, System } from '../types'
 
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
 
@@ -16,17 +16,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Systems
+  fetchSystems: () => request<System[]>('/api/systems'),
+
+  createSystem: (body: { name: string; description?: string | null }) =>
+    request<System>('/api/systems', { method: 'POST', body: JSON.stringify(body) }),
+
+  updateSystem: (id: string, body: { name?: string; description?: string | null }) =>
+    request<{ id: string; name: string; updated_at: string }>(`/api/systems/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  deleteSystem: (id: string) =>
+    request<void>(`/api/systems/${id}`, { method: 'DELETE' }),
+
+  // Services
   fetchServices: () => request<Service[]>('/api/services'),
 
   fetchService: (id: string) => request<Service>(`/api/services/${id}`),
 
-  createService: (body: { name: string; service_type: string; config: unknown; interval_secs?: number }) =>
-    request<{ id: string; name: string; created_at: string }>('/api/services', {
+  createService: (body: { name: string; service_type: string; config: unknown; interval_secs?: number; system_id?: string | null }) =>
+    request<{ id: string; name: string; system_id: string | null; created_at: string }>('/api/services', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
 
-  updateService: (id: string, body: { name?: string; config?: unknown; interval_secs?: number; enabled?: boolean }) =>
+  updateService: (id: string, body: { name?: string; config?: unknown; interval_secs?: number; enabled?: boolean; system_id?: string | null }) =>
     request<{ id: string; updated_at: string }>(`/api/services/${id}`, {
       method: 'PUT',
       body: JSON.stringify(body),

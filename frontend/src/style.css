@@ -482,3 +482,87 @@ input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-colo
 }
 
 .icon-btn:hover { background: var(--bg-hover); }
+
+/* System Card */
+.system-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.system-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.system-card-header:hover { background: var(--bg-hover); }
+
+.system-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+}
+
+.system-card-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.system-collapse-icon {
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.system-collapse-icon.open { transform: rotate(90deg); }
+
+.system-services {
+  border-top: 1px solid var(--border);
+}
+
+.system-service-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+}
+
+.system-service-row:last-child { border-bottom: none; }
+.system-service-row:hover { background: var(--bg-hover); }
+
+.system-service-name { flex: 1; font-weight: 500; }
+.system-service-type { font-size: 11px; color: var(--text-muted); }
+.system-service-ms   { font-size: 12px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+
+/* Ungrouped section */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+
+.section-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}

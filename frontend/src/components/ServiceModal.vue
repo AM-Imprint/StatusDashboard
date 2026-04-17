@@ -2,12 +2,14 @@
 import { ref, computed, watch } from 'vue'
 import { api } from '../api/http'
 import { useServicesStore } from '../stores/services'
+import { useSystemsStore } from '../stores/systems'
 import type { Service } from '../types'
 
 const props = defineProps<{ service?: Service }>()
 const emit  = defineEmits<{ close: [] }>()
 
 const store = useServicesStore()
+const systemsStore = useSystemsStore()
 const isEdit = computed(() => !!props.service)
 
 // Form state
@@ -16,6 +18,7 @@ const serviceType  = ref(props.service?.service_type ?? 'http')
 const configText   = ref(props.service ? JSON.stringify(props.service.config, null, 2) : defaultConfig('http'))
 const intervalSecs = ref(props.service?.interval_secs ?? 60)
 const enabled      = ref(props.service?.enabled ?? true)
+const systemId     = ref<string | null>(props.service?.system_id ?? null)
 const error        = ref('')
 const saving       = ref(false)
 const deleting     = ref(false)
@@ -98,8 +101,8 @@ async function submit() {
         config,
         interval_secs: intervalSecs.value,
         enabled: enabled.value,
+        system_id: systemId.value,
       })
-      // Re-fetch to get updated service data
       const updated = await api.fetchService(props.service.id)
       store.upsert(updated)
     } else {
@@ -108,8 +111,8 @@ async function submit() {
         service_type: serviceType.value,
         config,
         interval_secs: intervalSecs.value,
+        system_id: systemId.value,
       })
-      // Refetch all to get the new service with latest_check
       await store.fetchAll()
     }
     emit('close')
@@ -166,6 +169,14 @@ async function deleteService() {
         <div class="form-group">
           <label for="svc-interval">Poll Interval (seconds)</label>
           <input id="svc-interval" type="number" v-model.number="intervalSecs" min="5" max="86400" />
+        </div>
+
+        <div class="form-group">
+          <label for="svc-system">System (optional)</label>
+          <select id="svc-system" v-model="systemId">
+            <option :value="null">— None (ungrouped) —</option>
+            <option v-for="sys in systemsStore.list" :key="sys.id" :value="sys.id">{{ sys.name }}</option>
+          </select>
         </div>
 
         <div v-if="isEdit" class="toggle-row">

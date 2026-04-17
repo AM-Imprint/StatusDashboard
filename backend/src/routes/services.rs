@@ -19,7 +19,7 @@ pub async fn list_services(
     let rows = sqlx::query!(
         r#"SELECT id as "id!", name as "name!", service_type as "service_type!",
            config as "config!", interval_secs as "interval_secs!", enabled as "enabled!",
-           created_at as "created_at!", updated_at as "updated_at!"
+           system_id, created_at as "created_at!", updated_at as "updated_at!"
            FROM services ORDER BY created_at ASC"#
     )
     .fetch_all(&state.db)
@@ -51,6 +51,7 @@ pub async fn list_services(
             "config": serde_json::from_str::<serde_json::Value>(&r.config).unwrap_or(serde_json::Value::Null),
             "interval_secs": r.interval_secs,
             "enabled": r.enabled == 1,
+            "system_id": r.system_id,
             "created_at": r.created_at,
             "updated_at": r.updated_at,
             "latest_check": latest_check
@@ -66,7 +67,7 @@ pub async fn get_service(
     let r = sqlx::query!(
         r#"SELECT id as "id!", name as "name!", service_type as "service_type!",
            config as "config!", interval_secs as "interval_secs!", enabled as "enabled!",
-           created_at as "created_at!", updated_at as "updated_at!"
+           system_id, created_at as "created_at!", updated_at as "updated_at!"
            FROM services WHERE id = ?"#,
         id
     )
@@ -81,6 +82,7 @@ pub async fn get_service(
         "config": serde_json::from_str::<serde_json::Value>(&r.config).unwrap_or(serde_json::Value::Null),
         "interval_secs": r.interval_secs,
         "enabled": r.enabled == 1,
+        "system_id": r.system_id,
         "created_at": r.created_at,
         "updated_at": r.updated_at
     })))
@@ -99,16 +101,16 @@ pub async fn create_service(
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
     sqlx::query!(
-        "INSERT INTO services (id, name, service_type, config, interval_secs, enabled, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
-        id, body.name, body.service_type, config_str, interval, now, now
+        "INSERT INTO services (id, name, service_type, config, interval_secs, enabled, system_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)",
+        id, body.name, body.service_type, config_str, interval, body.system_id, now, now
     )
     .execute(&state.db)
     .await?;
 
     scheduler::spawn_service(id.clone(), &state.db, state.tx.clone(), &state.scheduler_handles).await;
 
-    let resp = serde_json::json!({ "id": id, "name": body.name, "created_at": now });
+    let resp = serde_json::json!({ "id": id, "name": body.name, "system_id": body.system_id, "created_at": now });
     Ok((StatusCode::CREATED, Json(resp)))
 }
 
@@ -119,7 +121,7 @@ pub async fn update_service(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let r = sqlx::query!(
         r#"SELECT id as "id!", name as "name!", config as "config!",
-           interval_secs as "interval_secs!", enabled as "enabled!"
+           interval_secs as "interval_secs!", enabled as "enabled!", system_id
            FROM services WHERE id = ?"#,
         id
     )
@@ -131,15 +133,30 @@ pub async fn update_service(
     let config_str = body.config.as_ref().map(|c| c.to_string()).unwrap_or(r.config);
     let interval = body.interval_secs.unwrap_or(r.interval_secs);
     let enabled: i64 = body.enabled.map(|e| e as i64).unwrap_or(r.enabled);
+    // double-Option: Some(Some(id)) = assign, Some(None) = unassign, None = no change
+    let new_system_id: Option<Option<String>> = body.system_id;
     let now = Utc::now().to_rfc3339();
 
-    sqlx::query!(
-        "UPDATE services SET name = ?, config = ?, interval_secs = ?, enabled = ?, updated_at = ?
-         WHERE id = ?",
-        name, config_str, interval, enabled, now, id
-    )
-    .execute(&state.db)
-    .await?;
+    match &new_system_id {
+        Some(sid) => {
+            sqlx::query!(
+                "UPDATE services SET name = ?, config = ?, interval_secs = ?, enabled = ?, system_id = ?, updated_at = ?
+                 WHERE id = ?",
+                name, config_str, interval, enabled, sid, now, id
+            )
+            .execute(&state.db)
+            .await?;
+        }
+        None => {
+            sqlx::query!(
+                "UPDATE services SET name = ?, config = ?, interval_secs = ?, enabled = ?, updated_at = ?
+                 WHERE id = ?",
+                name, config_str, interval, enabled, now, id
+            )
+            .execute(&state.db)
+            .await?;
+        }
+    }
 
     if enabled == 1 {
         scheduler::spawn_service(id.clone(), &state.db, state.tx.clone(), &state.scheduler_handles).await;
@@ -147,9 +164,18 @@ pub async fn update_service(
         scheduler::abort_service(&id, &state.scheduler_handles).await;
     }
 
+    let effective_system_id = new_system_id
+        .clone()
+        .unwrap_or(r.system_id.map(Some).unwrap_or(None));
+
     let _ = state.tx.send(WsMessage::ServiceUpdated {
         service_id: id.clone(),
-        fields: serde_json::json!({ "name": name, "interval_secs": interval, "enabled": enabled == 1 }),
+        fields: serde_json::json!({
+            "name": name,
+            "interval_secs": interval,
+            "enabled": enabled == 1,
+            "system_id": effective_system_id
+        }),
     });
 
     Ok(Json(serde_json::json!({ "id": id, "updated_at": now })))
@@ -203,4 +229,3 @@ pub async fn get_uptime(
     let pct = if total == 0 { None } else { Some(up as f64 / total as f64 * 100.0) };
     Ok(Json(serde_json::json!({ "window": window, "uptime_pct": pct, "total_checks": total, "up_checks": up })))
 }
-

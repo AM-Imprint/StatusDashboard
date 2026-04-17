@@ -2,6 +2,7 @@ import { ref, onUnmounted } from 'vue'
 import { useServicesStore } from '../stores/services'
 import { useCheckResultsStore } from '../stores/checkResults'
 import { useIncidentsStore } from '../stores/incidents'
+import { useSystemsStore } from '../stores/systems'
 import type { WsMessage } from '../types'
 
 type WsStatus = 'connecting' | 'open' | 'closed' | 'error'
@@ -16,9 +17,10 @@ export function useWebSocket() {
   let backoff = 1000
   let destroyed = false
 
-  const servicesStore = useServicesStore()
-  const checkStore    = useCheckResultsStore()
+  const servicesStore  = useServicesStore()
+  const checkStore     = useCheckResultsStore()
   const incidentsStore = useIncidentsStore()
+  const systemsStore   = useSystemsStore()
 
   function dispatch(msg: WsMessage) {
     switch (msg.type) {
@@ -35,6 +37,9 @@ export function useWebSocket() {
       case 'service_updated':
         servicesStore.applyServiceUpdate(msg)
         break
+      case 'system_updated':
+        systemsStore.applySystemUpdate(msg)
+        break
       case 'ping':
         break
     }
@@ -48,6 +53,7 @@ export function useWebSocket() {
     ws.onopen = () => {
       backoff = 1000
       status.value = 'open'
+      systemsStore.fetchAll()
       servicesStore.fetchAll()
     }
 
