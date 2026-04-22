@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-trap 'kill $(jobs -p) 2>/dev/null' EXIT
+trap 'kill -- -$$' EXIT
 
 # Free ports if already in use
 lsof -ti :3000 | xargs kill -9 2>/dev/null || true
