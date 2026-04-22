@@ -3,7 +3,12 @@ import type { Service } from '../types'
 import { serviceStats } from '../utils/serviceDetail'
 import ChartWidget from './ChartWidget.vue'
 
-defineProps<{ service: Service }>()
+const props = defineProps<{ service: Service }>()
+
+function chartFlex(service: Service): number {
+  const t = service.config?.chart_type as string | undefined
+  return t === 'line' ? 5 : 3
+}
 
 function statusLabel(service: Service): string {
   const s = service.latest_check?.status
@@ -18,7 +23,7 @@ function statusClass(service: Service): string {
 
 <template>
   <!-- Chart slice -->
-  <div v-if="service.service_type === 'chart_query'" class="tv-slice tv-slice-chart" :class="statusClass(service)">
+  <div v-if="service.service_type === 'chart_query'" class="tv-slice tv-slice-chart" :class="statusClass(service)" :style="{ flex: chartFlex(service) }">
     <div class="tv-slice-chart-header">
       <span class="tv-slice-name">{{ service.name }}</span>
       <span class="tv-slice-chart-status">{{ statusLabel(service) }}</span>

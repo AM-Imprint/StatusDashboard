@@ -11,6 +11,30 @@ const systemsStore  = useSystemsStore()
 const systems   = computed(() => systemsStore.list)
 const ungrouped = computed(() => servicesStore.ungrouped)
 
+function serviceWeight(serviceType: string, config?: Record<string, unknown>) {
+  if (serviceType !== 'chart_query') return 1
+  return config?.chart_type === 'line' ? 5 : 3
+}
+
+function spanForWeight(w: number) {
+  if (w <= 4) return 1
+  if (w <= 9) return 2
+  return 3
+}
+
+const systemLayouts = computed(() =>
+  systems.value.map(sys => {
+    const svcs = servicesStore.bySystem(sys.id)
+    const weight = svcs.reduce((sum, s) => sum + serviceWeight(s.service_type), 0)
+    return { system: sys, span: spanForWeight(weight) }
+  })
+)
+
+const totalTracks = computed(() => {
+  const systemTracks = systemLayouts.value.reduce((s, l) => s + l.span, 0)
+  return systemTracks + (ungrouped.value.length > 0 ? 1 : 0)
+})
+
 const now = ref(new Date())
 let timer: ReturnType<typeof setInterval>
 onMounted(() => { timer = setInterval(() => { now.value = new Date() }, 1000) })
@@ -23,11 +47,12 @@ const timeStr = computed(() =>
 
 <template>
   <div class="tv-root">
-    <div class="tv-grid">
+    <div class="tv-grid" :style="{ gridTemplateColumns: `repeat(${totalTracks}, 1fr)` }">
       <TvSystemColumn
-        v-for="sys in systems"
-        :key="sys.id"
-        :system="sys"
+        v-for="layout in systemLayouts"
+        :key="layout.system.id"
+        :system="layout.system"
+        :span="layout.span"
       />
 
       <!-- Ungrouped services as a final column -->
@@ -65,7 +90,7 @@ const timeStr = computed(() =>
 .tv-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  /* columns set dynamically via :style */
   min-height: 0;
 }
 

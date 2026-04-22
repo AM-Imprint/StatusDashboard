@@ -38,7 +38,7 @@ export interface CheckResult {
   checked_at: string
   status: Status
   response_ms: number | null
-  detail: string | null
+  detail: unknown
   error_message: string | null
 }
 

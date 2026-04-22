@@ -31,7 +31,7 @@ export const useCheckResultsStore = defineStore('checkResults', {
         checked_at: msg.checked_at,
         status: msg.status as 'up' | 'degraded' | 'down',
         response_ms: msg.response_ms,
-        detail: null,
+        detail: msg.detail !== undefined ? msg.detail : null,
         error_message: msg.error_message,
       }
       this.byService[serviceId] = [result, ...existing].slice(0, MAX_RESULTS)

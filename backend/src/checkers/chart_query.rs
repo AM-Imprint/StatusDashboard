@@ -58,6 +58,40 @@ impl Checker for ChartQueryChecker {
     }
 }
 
+fn pg_label(row: &sqlx::postgres::PgRow) -> Result<String, String> {
+    use sqlx::Row;
+    if let Ok(s) = row.try_get::<String, _>("label") {
+        return Ok(s);
+    }
+    if let Ok(d) = row.try_get::<chrono::NaiveDate, _>("label") {
+        return Ok(d.to_string());
+    }
+    if let Ok(dt) = row.try_get::<chrono::NaiveDateTime, _>("label") {
+        return Ok(dt.to_string());
+    }
+    if let Ok(n) = row.try_get::<i64, _>("label") {
+        return Ok(n.to_string());
+    }
+    if let Ok(n) = row.try_get::<f64, _>("label") {
+        return Ok(n.to_string());
+    }
+    Err("missing 'label' column (expected text, date, or number)".to_string())
+}
+
+fn pg_value(row: &sqlx::postgres::PgRow) -> Result<f64, String> {
+    use sqlx::Row;
+    if let Ok(v) = row.try_get::<f64, _>("value") {
+        return Ok(v);
+    }
+    if let Ok(v) = row.try_get::<i64, _>("value") {
+        return Ok(v as f64);
+    }
+    if let Ok(v) = row.try_get::<i32, _>("value") {
+        return Ok(v as f64);
+    }
+    Err("missing 'value' column (expected number)".to_string())
+}
+
 #[derive(serde::Serialize)]
 struct ChartRow {
     label: String,
@@ -128,18 +162,10 @@ impl ChartQueryChecker {
 
         raw.iter()
             .map(|row| {
-                let label: String = row
-                    .try_get("label")
-                    .map_err(|_| "missing 'label' column".to_string())?;
-                let value: f64 = row
-                    .try_get("value")
-                    .map_err(|_| "missing 'value' column".to_string())?;
+                let label = pg_label(row)?;
+                let value = pg_value(row)?;
                 let color: Option<String> = row.try_get("color").ok();
-                Ok(ChartRow {
-                    label,
-                    value,
-                    color,
-                })
+                Ok(ChartRow { label, value, color })
             })
             .collect()
     }
