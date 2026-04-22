@@ -4,6 +4,7 @@ use thiserror::Error;
 use crate::models::check_result::CheckStatus;
 
 pub mod aws_billing;
+pub mod chart_query;
 pub mod database;
 pub mod http;
 pub mod php_site;
@@ -48,6 +49,7 @@ pub fn build_checker(
         "php_site" => Ok(Box::new(php_site::PhpSiteChecker::from_config(config)?)),
         "preflight" => Ok(Box::new(preflight::PreflightChecker::from_config(config)?)),
         "sql_query" => Ok(Box::new(sql_query::SqlQueryChecker::from_config(config)?)),
+        "chart_query" => Ok(Box::new(chart_query::ChartQueryChecker::from_config(config)?)),
         other => Err(ConfigError::UnknownType(other.to_string())),
     }
 }

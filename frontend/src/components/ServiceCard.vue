@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import StatusBadge from './StatusBadge.vue'
+import ChartWidget from './ChartWidget.vue'
 import type { Service } from '../types'
 
 const props = defineProps<{ service: Service }>()
 const emit  = defineEmits<{ select: [id: string] }>()
+
+const isChart = () => props.service.service_type === 'chart_query'
 
 const statusClass = () => {
   const s = props.service.latest_check?.status
@@ -20,7 +23,22 @@ const fmtType = (t: string) => t.replace(/_/g, ' ')
 </script>
 
 <template>
-  <div :class="['service-card', statusClass()]" @click="emit('select', service.id)">
+  <!-- Chart card — taller, wider -->
+  <div v-if="isChart()" :class="['service-card', 'chart-card', statusClass()]" @click="emit('select', service.id)">
+    <div class="card-header">
+      <span class="card-name">{{ service.name }}</span>
+      <span class="type-tag">{{ fmtType(service.service_type) }}</span>
+    </div>
+    <ChartWidget :service="service" />
+    <div class="card-meta" style="margin-top: 6px">
+      <StatusBadge :status="service.latest_check?.status ?? null" />
+      <span>⏱ {{ fmtMs(service.latest_check?.response_ms) }}</span>
+      <span v-if="!service.enabled" style="color: var(--color-degraded)">Disabled</span>
+    </div>
+  </div>
+
+  <!-- Standard card -->
+  <div v-else :class="['service-card', statusClass()]" @click="emit('select', service.id)">
     <div class="card-header">
       <span class="card-name">{{ service.name }}</span>
       <span class="type-tag">{{ fmtType(service.service_type) }}</span>

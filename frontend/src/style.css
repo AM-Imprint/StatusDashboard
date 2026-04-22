@@ -154,6 +154,13 @@ body {
 .service-card.is-degraded { border-left-color: var(--color-degraded); }
 .service-card.is-up       { border-left-color: var(--color-up); }
 
+.chart-card {
+  grid-column: span 2;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
 .card-header {
   display: flex;
   align-items: flex-start;

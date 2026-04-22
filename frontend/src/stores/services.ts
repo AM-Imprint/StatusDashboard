@@ -53,6 +53,7 @@ export const useServicesStore = defineStore('services', {
         status: msg.status as 'up' | 'degraded' | 'down',
         response_ms: msg.response_ms,
         error_message: msg.error_message,
+        detail: msg.detail,
       }
       const systemsStore = useSystemsStore()
       for (const sid of svc.system_ids ?? []) {

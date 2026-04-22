@@ -6,6 +6,7 @@ export interface LatestCheck {
   status: Status
   response_ms: number | null
   error_message: string | null
+  detail: unknown
 }
 
 export interface System {
