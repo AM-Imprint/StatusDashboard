@@ -5,9 +5,10 @@ import ChartWidget from './ChartWidget.vue'
 
 const props = defineProps<{ service: Service }>()
 
-function chartFlex(service: Service): number {
-  const t = service.config?.chart_type as string | undefined
-  return t === 'line' ? 5 : 3
+function chartFlex(_service: Service): number {
+  // const t = service.config?.chart_type as string | undefined
+  // return t === 'line' ? 5 : 3
+  return 3
 }
 
 function statusLabel(service: Service): string {
