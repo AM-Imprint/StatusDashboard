@@ -4,12 +4,12 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   preview: {
-    allowedHosts: ["andrew.imprint.vpn"]
+    allowedHosts: ["andrew.imprint.vpn", "localhost"]
   },
   server: {
     proxy: {
-      '/api': 'http://andrew.imprint.vpn:3000',
-      '/ws': { target: 'ws://andrew.imprint.vpn:3000', ws: true },
+      '/api': 'http://localhost:3000',
+      '/ws': { target: 'ws://localhost:3000', ws: true },
     },
   },
 })
