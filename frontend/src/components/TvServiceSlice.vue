@@ -36,7 +36,6 @@ function statusClass(service: Service): string {
 
   <!-- Standard slice -->
   <div v-else class="tv-slice" :class="statusClass(service)">
-    <span class="tv-slice-watermark">{{ statusLabel(service) }}</span>
     <div class="tv-slice-name">{{ service.name }}</div>
     <div v-if="serviceStats(service).length > 0" class="tv-slice-stats">
       <span v-for="stat in serviceStats(service)" :key="stat.label" class="tv-slice-stat">
@@ -117,22 +116,6 @@ function statusClass(service: Service): string {
 .tv-slice-chart .tv-slice-name {
   font-size: clamp(12px, 1.2vw, 18px);
   color: #e2e8f0;
-}
-
-.tv-slice-watermark {
-  display: none;
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(40px, 6vw, 100px);
-  font-weight: 900;
-  letter-spacing: 3px;
-  color: #fff;
-  opacity: 0.2;
-  pointer-events: none;
-  user-select: none;
 }
 
 .tv-slice-stats {
