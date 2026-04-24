@@ -14,6 +14,6 @@ git pull --no-rebase
 
 # Wait for vite preview to be ready, then open browser
 until curl -s http://localhost:4173 > /dev/null 2>&1; do sleep 1; done
-open http://localhost:4173?tv
+xdg-open http://localhost:4173?tv
 
 wait
